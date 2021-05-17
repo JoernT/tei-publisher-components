@@ -350,7 +350,8 @@ export class PbView extends pbMixin(LitElement) {
             } else if (registry.state.root && !this.nodeId) {
                 this.nodeId = registry.state.root;
             }
-            registry.subscribe(this._refresh.bind(this));
+            this.subscribeTo('pb-popstate', this._refresh.bind(this));
+            // registry.subscribe(this._refresh.bind(this));
         }
         if (!this.waitFor) {
             this.waitFor = 'pb-toggle-feature,pb-select-feature,pb-navigation';
@@ -483,29 +484,29 @@ export class PbView extends pbMixin(LitElement) {
 
     _refresh(ev) {
         if (ev && ev.detail) {
-
-            if (ev.detail.path) {
+            const detail = ev.detail.state ? ev.detail.state : ev.detail;
+            if (detail.path) {
                 const doc = this.getDocument();
-                doc.path = ev.detail.path;
+                doc.path = detail.path;
             }
-            if (ev.detail.id) {
-                this.xmlId = ev.detail.id;
+            if (detail.id) {
+                this.xmlId = detail.id;
             }
-            this.odd = ev.detail.odd || this.odd;
-            if (ev.detail.columnSeparator !== undefined) {
-                this.columnSeparator = ev.detail.columnSeparator;
+            this.odd = detail.odd || this.odd;
+            if (detail.columnSeparator !== undefined) {
+                this.columnSeparator = detail.columnSeparator;
             }
-            this.view = ev.detail.view || this.view;
+            this.view = detail.view || this.view;
             // clear nodeId if set to null
-            if (this.getView() === 'single' || ev.detail.root === null) {
+            if (this.getView() === 'single' || detail.root === null) {
                 this.nodeId = null;
             } else {
-                this.nodeId = ev.detail.root || this.nodeId;
+                this.nodeId = detail.root || this.nodeId;
             }
-            this._scrollTarget = ev.detail.hash;
+            this._scrollTarget = detail.hash;
 
-            if (ev.detail.toggles) {
-                Object.values(ev.detail.toggles).forEach((toggle) => {
+            if (detail.toggles) {
+                Object.values(detail.toggles).forEach((toggle) => {
                     this._configureToggles(toggle);
                 });
             }
@@ -875,14 +876,15 @@ export class PbView extends pbMixin(LitElement) {
         }
         params.odd = this.getOdd() + '.odd';
         params.view = this.getView();
-        if (pos) {
-            params['root'] = pos;
-        }
         if (this.xpath) {
             params.xpath = this.xpath;
         }
         if (this.xmlId) {
             params.id = this.xmlId;
+        }
+        // pass root only if id is not set
+        if (pos && !params.id) {
+            params['root'] = pos;
         }
         if (this.highlight) {
             params.highlight = "yes";
@@ -945,7 +947,6 @@ export class PbView extends pbMixin(LitElement) {
         }
 
         this.lastDirection = direction;
-
         if (direction === 'backward') {
             if (this.previous) {
                 if (!this.disableHistory && !this.map) {
@@ -1052,7 +1053,8 @@ export class PbView extends pbMixin(LitElement) {
           if (properties.odd) {
             this.odd = properties.odd;
           }
-          if (properties.view) {
+          if (properties.view && this.getView() !== properties.view) {
+              console.log('changing view from %s to %s', this.view, properties.view);
             this.view = properties.view;
             if (this.view === 'single') {
               // when switching to single view, clear current node id
